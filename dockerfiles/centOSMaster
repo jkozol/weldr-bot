@@ -1,0 +1,32 @@
+# Based off of the official docker buildbot-master image
+
+# Build the final image here.  Use build artifacts from the buildbot-build container. 
+#
+# Note that the UI and worker packages are the latest version published on pypi 
+# This is to avoid pulling node inside this container
+
+FROM centos:centos7
+MAINTAINER "Jacob Kozol" <jkozol@redhat.com>
+
+COPY . /usr/src/buildbot
+
+RUN yum -y update; yum clean all
+RUN yum -y install epel-release
+RUN \
+    yum -y install \
+        git \
+        gcc \
+	python-devel \
+        libfi-devel \
+	postgresql-devel \
+	postgresql-libs \
+	libcurl-devel \
+        python-pip &&  \
+
+# install pip deps
+    pip install dumb-init && \
+    pip install --upgrade pip setuptools && \
+    pip install "buildbot[bundle,tls]"
+
+WORKDIR /var/lib/buildbot
+CMD ["dumb-init", "/usr/src/buildbot/docker/start_buildbot.sh"]

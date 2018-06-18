@@ -1,0 +1,66 @@
+# Based off of the official docker buildbot-master image
+
+# Use a multi-stage build: 
+# https://docs.docker.com/develop/develop-images/multistage-build/ 
+# 
+# Provide an intermediate Docker image named "buildbot-build". 
+# This intermediate image builds binary wheels # which get installed in the final image. 
+# This allows us to avoid installing build tools like gcc in the final image.
+
+FROM centos:centos7 AS buildbot-build
+MAINTAINER "Jacob Kozol" <jkozol@redhat.com>
+
+COPY . /usr/src/buildbot
+
+RUN yum -y update; yum clean all
+RUN yum -y install epel-release
+RUN \
+    yum -y install \
+	git \
+	gcc \
+	python-devel \
+	libfi-devel \ 
+	openssl-devel \
+	postgresql-devel \
+	python-pip &&  \
+# install pip deps
+    pip install --upgrade pip setuptools wheel && \
+    pip install "buildbot[bundle,tls]" && \
+    pip install -r /usr/src/buildbot/requirements-docker-extras.txt && \
+    mkdir -p wheels && \ 
+    pip list --format freeze | grep -v '^buildbot=' > wheels/wheels.txt && \
+    cd wheels && \
+    pip wheel -r wheels.txt
+
+
+
+# Build the final image here.  Use build artifacts from the buildbot-build container. 
+#
+# Note that the UI and worker packages are the latest version published on pypi 
+# This is to avoid pulling node inside this container
+
+FROM centos:centos7
+MAINTAINER "Jacob Kozol" <jkozol@redhat.com>
+
+COPY . /usr/src/buildbot
+COPY --from=buildbot-build /wheels /wheels
+
+RUN yum -y update; yum clean all
+RUN yum -y install epel-release
+RUN \
+    yum -y install \
+        git \
+        gcc \
+	python \
+        postgresql-libs \
+        python-pip &&  \
+
+# install pip deps
+    pip install dumb-init && \
+    pip install --upgrade pip setuptools && \
+    pip install /wheels/*.whl && \
+    pip install "buildbot[bundle,tls]" && \
+    rm -r /root/.cache /wheels
+
+WORKDIR /var/lib/buildbot
+CMD ["dumb-init", "/usr/src/buildbot/docker/start_buildbot.sh"]
