@@ -24,7 +24,7 @@ services:
       - 5432
 
   worker:
-    image: "npm-worker:latest"
+    image: "buildworker:latest"
     environment:
       BUILDMASTER: buildbot
       BUILDMASTER_PORT: 9989

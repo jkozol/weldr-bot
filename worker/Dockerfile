@@ -19,14 +19,15 @@ RUN \
     	libffi-devel \
     	openssl-devel \
     	curl && \ 
-    # so we need to simulate that here.  See https://github.com/Yelp/dumb-init
-    # curl https://github.com/Yelp/dumb-init/releases/download/v1.2.1/dumb-init_1.2.1_amd64.deb -Lo /tmp/init.deb && dpkg -i /tmp/init.deb &&\
     # Install required python packages, and twisted
     pip install --upgrade pip setuptools wheel && \
     pip install dumb-init && \
     pip --no-cache-dir install 'twisted[tls]' && \
     mkdir /buildbot &&\
     useradd -ms /bin/bash buildbot && chown -R buildbot /buildbot
+RUN curl --silent --location https://rpm.nodesource.com/setup_8.x | bash -
+RUN yum -y install nodejs
+
 
 COPY . /usr/src/buildbot-worker
 COPY docker/buildbot.tac /buildbot/buildbot.tac
